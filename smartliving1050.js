@@ -36,6 +36,7 @@ var zones = {
 };
 
 var zonesLastValue = {};
+var areasLastValue = {};
 
 var queue = [];
 
@@ -192,10 +193,9 @@ client.on('data', (recv_data) => {
 	    
 	case cmdType.AREA_STAT:
 	    
-	    area = 0;
-	    for (a = 0; a < 10; a++)
+	    for (area = 0; area < 10; area++)
 	    {
-		armed = (data[Math.floor(a/2)] >>> (((a % 2) * 4))) & 0xF
+		armed = (data[Math.floor(area/2)] >>> (((area % 2) * 4))) & 0xF
 		switch (armed) {
 		case 1:
 		    armeds = 'Away';
@@ -214,17 +214,24 @@ client.on('data', (recv_data) => {
 		    break;
 		}
 		
-		alarm = (data[ a < 8 ? 6 : 7] >>> (a % 8)) & 1;
+		alarm = (data[ area < 8 ? 6 : 7] >>> (area % 8)) & 1;
 		
-		tamper = (data[ a < 8 ? 8 : 9] >>> (a % 8)) & 1;
+		tamper = (data[ area < 8 ? 8 : 9] >>> (area % 8)) & 1;
 		
-		alarm_mem = (data[ a < 8 ? 10 : 11] >>> (a % 8)) & 1;
+		alarm_mem = (data[ area < 8 ? 10 : 11] >>> (area % 8)) & 1;
 
-		tamper_mem = (data[ a < 8 ? 12 : 13] >>> (a % 8)) & 1;
+		tamper_mem = (data[ area < 8 ? 12 : 13] >>> (area % 8)) & 1;
+	
+		auto_arm = (data[ area < 8 ? 14 : 15] >>> (area % 8)) & 1;
 		
-		auto_arm = (data[ a < 8 ? 14 : 15] >>> (a % 8)) & 1;
-		
-		console.log('Area ' + a + ' armed=' + armeds + ' alarm=' + alarm + ' tamper=' + tamper + ' alarm_mem=' + alarm_mem + ' tamper_mem=' + tamper_mem + ' auto_arm=' + auto_arm);
+		value = "{ \"armed\" : \""+ armeds +"\", \"alarm\" : \""+ alarm +"\", \"tamper\" : \""+ tamper +"\", \"alarm_mem\" : \""+ alarm_mem +"\", \"tamper_mem\" : \""+ tamper_mem +"\", \"auto_arm\" : \""+ auto_arm +"\" }";
+
+		if (!(area in areasLastValue) || (areasLastValue[area] != value))
+		{
+		    console.log('Area ' + area + ' armed=' + armeds + ' alarm=' + alarm + ' tamper=' + tamper + ' alarm_mem=' + alarm_mem + ' tamper_mem=' + tamper_mem + ' auto_arm=' + auto_arm);
+		    areasLastValue[area] = value;
+		    mqtt_publish("Inim/Area/"+area, value);
+		}
 	    }
 	    
 	    
