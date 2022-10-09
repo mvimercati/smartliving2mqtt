@@ -35,6 +35,8 @@ var zones = {
     19 : "Finestra taverna"
 };
 
+var zonesLastValue = {};
+
 var queue = [];
 
 const cmdType = {
@@ -142,7 +144,7 @@ client.on('data', (recv_data) => {
 	case cmdType.ZONE_STAT:
 	    
 	    zone = 0;
-	    for (i = 0; i < 10; i++)
+	    for (i = 0; i < 25; i++)
 	    {
 
 		for(n = 0; n < 8; n+=2)
@@ -158,25 +160,31 @@ client.on('data', (recv_data) => {
 		    
 		    
 		    value = (data[i] >> n) & 3;
-		    switch (value) {
-		    case 0:
-			console.log('Zone ' + zone + ': Short ('+ zone_name +')');
-			mqtt_publish("Inim/Zone/"+zone, "Short");
-			break;
-		    case 1:		
-			console.log('Zone ' + zone + ': Closed('+ zone_name +')');
-			mqtt_publish("Inim/Zone/"+zone, "Closed");
-			break;
-		    case 2:
-			console.log('Zone ' + zone + ': Open('+ zone_name +')');
-			mqtt_publish("Inim/Zone/"+zone, "Open");
-			break;
-		    case 3:
-			console.log('Zone ' + zone + ': Tamper('+ zone_name +')');
-			mqtt_publish("Inim/Zone/"+zone, "Tamper");
-			break;
-		    }		
+
+		    if (!(zone in zonesLastValue) || (zonesLastValue[zone] != value))
+		    {
+			zonesLastValue[zone] = value;
 		    
+			switch (value) {
+			case 0:
+			    console.log('Zone ' + zone + ': Short ('+ zone_name +')');
+			    mqtt_publish("Inim/Zone/"+zone, "Short");
+			    break;
+			case 1:		
+			    console.log('Zone ' + zone + ': Closed('+ zone_name +')');
+			    mqtt_publish("Inim/Zone/"+zone, "Closed");
+			    break;
+			case 2:
+			    console.log('Zone ' + zone + ': Open('+ zone_name +')');
+			    mqtt_publish("Inim/Zone/"+zone, "Open");
+			    break;
+			case 3:
+			    console.log('Zone ' + zone + ': Tamper('+ zone_name +')');
+			    mqtt_publish("Inim/Zone/"+zone, "Tamper");
+			    break;
+			}
+		    }
+			
 		    zone++;
 		}
 	    }
@@ -274,7 +282,7 @@ setInterval(function() {
 
     cnt = (cnt + 1) % 2; //20;
     
-}, 500); // every 10s poll zone status
+}, 1000); // every 10s poll zone status
 
 
 
