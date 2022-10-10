@@ -44,9 +44,15 @@ const cmdType = {
     LOG_ELEM: 1,
     LOG_HEAD: 2,
     ZONE_STAT: 3,
-    AREA_STAT: 4    
+    AREA_STAT: 4,
+    CMD: 5
 };
 
+const areaCmd = {
+    ARM: 1,
+    STAY: 2,
+    INST: 3
+};
 
 function calcCkSum(buffer, size)
 {
@@ -96,6 +102,10 @@ client.on('data', (recv_data) => {
 	    size = 17;
 	    break;
 	    
+	case cmdType.CMD:
+	    size = 1;
+	    break;
+	    
 	default:
 	    return;
 	}
@@ -117,15 +127,18 @@ client.on('data', (recv_data) => {
 	
 	queue.shift();
 	
+
+	if (cmd != cmdType.CMD) {
+	    
+	    ckSum = calcCkSum(data, data.length - 1);
 	
-	ckSum = calcCkSum(data, data.length - 1);
-	
-	if (ckSum != data[data.length - 1])
-	{	
-	    console.log("");
-	    console.log("!!! Checksum error !!! " + ckSum + " " + data[data.length - 1]);
-	    console.log("");
-	    return;
+	    if (ckSum != data[data.length - 1])
+	    {	
+		console.log("");
+		console.log("!!! Checksum error !!! " + ckSum + " " + data[data.length - 1]);
+		console.log("");
+		return;
+	    }
 	}
 	
 	
@@ -236,13 +249,35 @@ client.on('data', (recv_data) => {
 	    
 	    
 	    break;
-	}	
+	
+	case cmdType.CMD:
+	    if (data[0] != queue[0]) {
+		console.log("Checksum error "+ data[0] + " " + queue[0]);
+	    }
+	    else {
+		console.log("Checksum ok");
+	    }
+	    queue.shift;
+	    break;
+	}
     }    
 });
 
 function setArmed(area, value)
 {
-    
+    write_cmd_area_buf[8] = 0;
+    write_cmd_area_buf[9] = 5;
+    write_cmd_area_buf[10] = 2;
+    write_cmd_area_buf[11] = 9;
+    write_cmd_area_buf[12] = 255;
+    write_cmd_area_buf[13] = 255;
+
+    offset = 14 + Math.floor(area/2);
+    write_cmd_area_buf[offset] = ((area % 2) == 0 ? value & 0xF : (value << 4 ) & 0xF0);
+
+    client.write(write_cmd_area_buf);
+    queue.push(cmdType.CMD);
+    queue.push(calcCkSum(write_cmd_area_buf, write_cmd_area_buf.length));
 }
 
 
@@ -251,6 +286,8 @@ const read_zone_status_buf = Buffer.from("0000002001001a3b", 'hex');
 const read_area_status_buf = Buffer.from("0000002000001030", 'hex');
 const read_log_elem_buf = Buffer.from("0000001FFF000000", 'hex');
 const read_log_head_buf = Buffer.from("0000001FFE000421", 'hex');
+const write_cmd_area_buf = Buffer.from("0100002006000E350000000000000000000000000000", 'hex');
+
 
 var cnt = 0;
 
@@ -306,6 +343,11 @@ setInterval(function() {
 }, 600 * 1000); // every 600s refresh all sensors
 
 
+setInterval(function() {
+
+//    setArmed(0, areaCmd.ARM);
+    
+}, 5);
 
 
 mqtt_client.on('connect', function() {
