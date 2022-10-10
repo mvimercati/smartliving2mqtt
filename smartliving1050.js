@@ -198,16 +198,16 @@ client.on('data', (recv_data) => {
 		armed = (data[Math.floor(area/2)] >>> (((area % 2) * 4))) & 0xF
 		switch (armed) {
 		case 1:
-		    armeds = 'Away';
+		    armeds = 'Armed';
 		    break;
 		case 2:
-		    armeds = 'Stay';
+		    armeds = 'Stay ';
 		    break;
 		case 3:
-		    armeds = 'Inst';
+		    armeds = 'Insta';
 		    break;
 		case 4:
-		    armeds = 'None';
+		    armeds = 'None ';
 		    break;
 		default:
 		    armeds = armed
@@ -236,11 +236,15 @@ client.on('data', (recv_data) => {
 	    
 	    
 	    break;
-	}
-	
-    }
-    
+	}	
+    }    
 });
+
+function setArmed(area, value)
+{
+    
+}
+
 
 
 const read_zone_status_buf = Buffer.from("0000002001001a3b", 'hex');
@@ -292,7 +296,14 @@ setInterval(function() {
 }, 1000); // every 10s poll zone status
 
 
+setInterval(function() {
 
+    zonesLastValue = {};
+    areasLastValue = {};
+
+    console.log("Clear");
+    
+}, 600 * 1000); // every 600s refresh all sensors
 
 
 
