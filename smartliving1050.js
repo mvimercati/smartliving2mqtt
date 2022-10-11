@@ -40,25 +40,31 @@ var areasLastValue = {};
 
 var queue = [];
 
+var cmdQueue = [];
+
+var canTransmit = true;
+
 const cmdType = {
     LOG_ELEM: 1,
     LOG_HEAD: 2,
     ZONE_STAT: 3,
     AREA_STAT: 4,
-    CMD: 5
+    WRITE_CMD: 5,
+    WRITE_RESULT: 6
 };
 
 const areaCmd = {
     ARM: 1,
     STAY: 2,
-    INST: 3
+    INST: 3,
+    DIS: 4
 };
 
-function calcCkSum(buffer, size)
+function calcCkSum(buffer, offset, size)
 {
     cksum = 0;
 
-    for (i = 0; i < size; i++)
+    for (i = offset; i < size; i++)
     {
 	cksum += buffer[i];
     }
@@ -76,9 +82,9 @@ client.on('data', (recv_data) => {
     databuffer = Buffer.concat([databuffer, recv_data]);
 
 
-    while (queue.length != 0)
+    if (queue.length > 0)
     {
-//	console.log(queue);
+	console.log(queue);
 	
 	var size;
 	
@@ -102,8 +108,12 @@ client.on('data', (recv_data) => {
 	    size = 17;
 	    break;
 	    
-	case cmdType.CMD:
+	case cmdType.WRITE_CMD:
 	    size = 1;
+	    break;
+
+	case cmdType.WRITE_RESULT:
+	    size = 2;
 	    break;
 	    
 	default:
@@ -117,6 +127,7 @@ client.on('data', (recv_data) => {
 	    console.log("no enough data");
 	    return;
 	}
+	console.log("Bytes available: " + databuffer.length);
 	
 	data = databuffer.slice(0, size)
 	databuffer = databuffer.slice(size);
@@ -128,9 +139,9 @@ client.on('data', (recv_data) => {
 	queue.shift();
 	
 
-	if (cmd != cmdType.CMD) {
+	if (cmd != cmdType.WRITE_CMD) {
 	    
-	    ckSum = calcCkSum(data, data.length - 1);
+	    ckSum = calcCkSum(data, 0, data.length - 1);
 	
 	    if (ckSum != data[data.length - 1])
 	    {	
@@ -160,10 +171,8 @@ client.on('data', (recv_data) => {
 	    zone = 0;
 	    for (i = 0; i < 25; i++)
 	    {
-
 		for(n = 0; n < 8; n+=2)
-		{
-		    
+		{   
 		    if (!(zone in zones))
 		    {
 			zone++;
@@ -250,34 +259,54 @@ client.on('data', (recv_data) => {
 	    
 	    break;
 	
-	case cmdType.CMD:
+	case cmdType.WRITE_CMD:
 	    if (data[0] != queue[0]) {
 		console.log("Checksum error "+ data[0] + " " + queue[0]);
 	    }
 	    else {
 		console.log("Checksum ok");
 	    }
-	    queue.shift;
+	    queue.shift();
+
+	    sendCmd(read_write_result_buf);
+	    queue.push(cmdType.WRITE_RESULT);
+	    break;
+	
+	case cmdType.WRITE_RESULT:
+	    if (data[0] == 0) {
+		console.log("Write Result OK");
+	    }
+	    else {
+		console.log("Write Result error: " + data[0]);
+	    }
+		    
 	    break;
 	}
-    }    
+    }
+    canTransmit = true;
+
+    consumeCmdQueue();
 });
 
 function setArmed(area, value)
 {
-    write_cmd_area_buf[8] = 0;
-    write_cmd_area_buf[9] = 5;
-    write_cmd_area_buf[10] = 2;
-    write_cmd_area_buf[11] = 9;
-    write_cmd_area_buf[12] = 255;
-    write_cmd_area_buf[13] = 255;
+    buf = Buffer.from(write_cmd_area_buf);
+    
+    buf[8] = 0;
+    buf[9] = 5;
+    buf[10] = 2;
+    buf[11] = 9;
+    buf[12] = 255;
+    buf[13] = 255;
 
     offset = 14 + Math.floor(area/2);
-    write_cmd_area_buf[offset] = ((area % 2) == 0 ? value & 0xF : (value << 4 ) & 0xF0);
+    buf[offset] = ((area % 2) == 0 ? value & 0xF : (value << 4 ) & 0xF0);
 
-    client.write(write_cmd_area_buf);
-    queue.push(cmdType.CMD);
-    queue.push(calcCkSum(write_cmd_area_buf, write_cmd_area_buf.length));
+    
+    sendCmd(buf);
+    queue.push(cmdType.WRITE_CMD);
+    queue.push(calcCkSum(buf, 8, buf.length));
+//    queue.push(cmdType.WRITE_RESULT);
 }
 
 
@@ -287,51 +316,86 @@ const read_area_status_buf = Buffer.from("0000002000001030", 'hex');
 const read_log_elem_buf = Buffer.from("0000001FFF000000", 'hex');
 const read_log_head_buf = Buffer.from("0000001FFE000421", 'hex');
 const write_cmd_area_buf = Buffer.from("0100002006000E350000000000000000000000000000", 'hex');
-
+const read_write_result_buf = Buffer.from("0000002004000125", 'hex');
 
 var cnt = 0;
 
 setInterval(function() {
 
     // Wait response before a new request
-    if (queue.length != 0) {
-	return;
-    }
+//    if (queue.length != 0) {
+//	return;
+//    }
 
     switch (cnt) {
     case 0:
-	client.write(read_zone_status_buf);
+//	consumeCmdQueue();
+	break;
+    case 1:
+	sendCmd(read_zone_status_buf);
 	queue.push(cmdType.ZONE_STAT);
 	break;
-    case 1:	
-	client.write(read_area_status_buf);
+    case 2:	
+	sendCmd(read_area_status_buf);
 	queue.push(cmdType.AREA_STAT);
 	break;	
-    case 2:
+    case 3:
 	prevLogHead = logHead;
-	client.write(read_log_head_buf);
+	sendCmd(read_log_head_buf);
 	queue.push(cmdType.LOG_HEAD);
 	break;
-    case 3:
     case 4:
     case 5:
     case 6:
 	i = logHead + 2 - cnt;
 	read_log_elem_buf[5] = (i >> 8) & 0xFF;
         read_log_elem_buf[6] = i & 0xFF;
-        read_log_elem_buf[read_log_elem_buf.length - 1] = calcCkSum(read_log_elem_buf, read_log_elem_buf.length - 1);
+        read_log_elem_buf[read_log_elem_buf.length - 1] = calcCkSum(read_log_elem_buf, 0, read_log_elem_buf.length - 1);
 
-	client.write(read_log_elem_buf);
+	sendCmd(read_log_elem_buf);
         queue.push(cmdType.LOG_ELEM);
 	break;
     default:
 	break;
     }
 
-    cnt = (cnt + 1) % 2; //20;
+    cnt = (cnt + 1) % 3; //20;
     
 }, 1000); // every 10s poll zone status
 
+
+function sendCmd(buffer)
+{
+    cmdQueue.push(buffer);
+
+    /*
+    if (queue.length == 0) {
+	client.write(buffer);	
+    } else {
+	setImmediate((buffer) => {
+	    sendCmd(buffer);
+	});
+	}*/
+
+    console.log("Comandi in coda: "+cmdQueue.length);
+
+    setImmediate(() => {
+	consumeCmdQueue();
+    });
+}
+
+function consumeCmdQueue()
+{
+    if ((canTransmit == true) && (cmdQueue.length > 0))
+    {
+	canTransmit = false;
+	console.log("Send buffer ");
+	console.log(cmdQueue[0]);
+	client.write(cmdQueue[0]);
+	console.log("----------- ");
+	cmdQueue.shift();
+    }
+}
 
 setInterval(function() {
 
@@ -345,9 +409,11 @@ setInterval(function() {
 
 setInterval(function() {
 
-//    setArmed(0, areaCmd.ARM);
+//    setArmed(1, areaCmd.STAY);
+//    setArmed(2, areaCmd.ARM);
+//    setArmed(3, areaCmd.INST);
     
-}, 5);
+}, 5000);
 
 
 mqtt_client.on('connect', function() {
