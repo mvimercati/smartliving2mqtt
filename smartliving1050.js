@@ -38,8 +38,6 @@ var zones = {
 var zonesLastValue = {};
 var areasLastValue = {};
 
-var queue = [];
-
 var cmdQueue = [];
 
 var canTransmit = true;
@@ -350,10 +348,10 @@ function queueCommand(buffer, type, arg)
     }
     
     
-    cmdQueue.push({'buffer'   : buffer,
-		   'type'     : type,
-		   'respSize' : size,
-		   'arg'      : arg });
+    cmdQueue.push({ 'buffer'   : buffer,
+		    'type'     : type,
+		    'respSize' : size,
+		    'arg'      : arg });
 
     console.log("Queued commands: " + cmdQueue.length);
 
@@ -421,18 +419,6 @@ function mqtt_publish(key, value)
 //    console.log("MQTT Publish " + key + " : " + value);
     mqtt_client.publish(key, value);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 function init()
