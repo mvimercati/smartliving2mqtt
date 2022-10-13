@@ -75,8 +75,6 @@ var logHead = 0;
 
 client.on('data', (recv_data) => {
 
-//    console.log(databuffer.length , recv_data.length);
-    
     databuffer = Buffer.concat([databuffer, recv_data]);
 
 
@@ -89,7 +87,6 @@ client.on('data', (recv_data) => {
 
     cmd = cmdQueue[0];
 
-    console.log(cmd);
 	
     if (databuffer.length < cmd['respSize'])
     {
@@ -179,10 +176,26 @@ client.on('data', (recv_data) => {
 	break;
 	
     case cmdType.AREA_STAT:
+
+	scen_status = data.slice(0,6);
+	if (scen_status.compare(scen_disarmed_buf) == 0)
+	{
+	    mqtt_publish("Inim/Arm", 'disarmed');
+        }
+        else if (scen_status.compare(scen_away_buf) == 0)
+        {
+            mqtt_publish("Inim/Arm", 'armed_away');
+        }
+	else if (scen_status.compare(scen_home_buf) == 0)
+        {
+            mqtt_publish("Inim/Arm", 'armed_home');
+        }
+
 	
 	for (area = 0; area < 10; area++)
 	{
 	    armed = (data[Math.floor(area/2)] >>> (((area % 2) * 4))) & 0xF
+	    
 	    switch (armed) {
 	    case 1:
 		armeds = 'Armed';
@@ -220,8 +233,7 @@ client.on('data', (recv_data) => {
 		mqtt_publish("Inim/Area/"+area, value);
 	    }
 	}
-	
-	
+
 	break;
 	
     case cmdType.WRITE_CMD:
@@ -268,7 +280,38 @@ function setArmed(area, value)
     queueCommand(read_write_result_buf, cmdType.WRITE_RESULT);
 }
 
+function setScenario(scenario)
+{
+    buf = Buffer.from(write_cmd_area_buf);
 
+    buf[8] = 0;
+    buf[9] = 5;
+    buf[10] = 2;
+    buf[11] = 9;
+    buf[12] = 255;
+    buf[13] = 255;
+    
+    if (scenario == "DISARM")
+    {
+	scen_disarmed_buf.copy(buf, 14);
+    }
+    else if (scenario == "ARM_AWAY")
+    {
+	scen_away_buf.copy(buf, 14);
+    }
+    else if (scenario == "ARM_HOME")
+    {
+	scen_home_buf.copy(buf, 14);
+    }
+    else
+    {
+	console.log("scenario" + scenario + "not handled");
+	return;
+    }
+
+    queueCommand(buf, cmdType.WRITE_CMD, calcCkSum(buf, 8, buf.length));
+    queueCommand(read_write_result_buf, cmdType.WRITE_RESULT);
+}
 
 const read_zone_status_buf = Buffer.from("0000002001001a3b", 'hex');
 const read_area_status_buf = Buffer.from("0000002000001030", 'hex');
@@ -276,6 +319,10 @@ const read_log_elem_buf = Buffer.from("0000001FFF000000", 'hex');
 const read_log_head_buf = Buffer.from("0000001FFE000421", 'hex');
 const write_cmd_area_buf = Buffer.from("0100002006000E350000000000000000000000000000", 'hex');
 const read_write_result_buf = Buffer.from("0000002004000125", 'hex');
+
+const scen_disarmed_buf = Buffer.from("444444444444", 'hex'); // Disattivato
+const scen_away_buf     = Buffer.from("111111114444", 'hex'); // Totale
+const scen_home_buf     = Buffer.from("111143144444", 'hex'); // Perimetrale
 
 var cnt = 0;
 
@@ -378,21 +425,12 @@ setInterval(function() {
 }, 600 * 1000); // every 600s refresh all sensors
 
 
-setInterval(function() {
-
-    setArmed(1, areaCmd.STAY);
-    setArmed(2, areaCmd.ARM);
-    setArmed(3, areaCmd.INST);
-    
-}, 5000);
-
 
 mqtt_client.on('connect', function() {
     console.log("Connected to MQTT broker");
-//    mqtt_client.subscribe('Viessmann/Commands/#', function(err) {
-//	console.log(err);
-//    });
-//    console.log("Done");
+    mqtt_client.subscribe('Inim/Commands/#', function(err) {
+	console.log(err);
+    });
     mqtt_connected = true;
 });
 
@@ -401,17 +439,9 @@ mqtt_client.on('message', function(topic, message) {
 
     console.log("------- Command topic " + topic + " -> " + message);
 
-//    if (topic.endsWith("HotWaterEnabled"))
-//    {
-//        if (message == "OFF")
-//        {
-//            last_enabled_temp = cmds["HotWaterTempTarget"][2];
-//        }
-//        write("HotWaterTempTarget", message == "OFF" ? "20" : last_enabled_temp);
-//        read("HotWaterTempTarget");
-//        return;
-//    }
+    mqtt_publish("Inim/Arm", 'pending');
 
+    setScenario(message);
 });
 
 function mqtt_publish(key, value)
