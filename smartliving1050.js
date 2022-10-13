@@ -190,7 +190,10 @@ client.on('data', (recv_data) => {
         {
             mqtt_publish("Inim/Arm", 'armed_home');
         }
-
+	else if (scen_status.compare(scen_night_buf) == 0)
+        {
+            mqtt_publish("Inim/Arm", 'armed_night');
+        }
 	
 	for (area = 0; area < 10; area++)
 	{
@@ -303,9 +306,13 @@ function setScenario(scenario)
     {
 	scen_home_buf.copy(buf, 14);
     }
+    else if (scenario == "ARM_NIGHT")
+    {
+        scen_night_buf.copy(buf, 14);
+    }
     else
     {
-	console.log("scenario" + scenario + "not handled");
+	console.log("Scenario " + scenario + " not handled");
 	return;
     }
 
@@ -323,6 +330,7 @@ const read_write_result_buf = Buffer.from("0000002004000125", 'hex');
 const scen_disarmed_buf = Buffer.from("444444444444", 'hex'); // Disattivato
 const scen_away_buf     = Buffer.from("111111114444", 'hex'); // Totale
 const scen_home_buf     = Buffer.from("111143144444", 'hex'); // Perimetrale
+const scen_night_buf    = Buffer.from("111113334444", 'hex'); // Notte
 
 var cnt = 0;
 
