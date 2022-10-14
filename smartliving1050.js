@@ -48,7 +48,8 @@ const cmdType = {
     ZONE_STAT: 3,
     AREA_STAT: 4,
     WRITE_CMD: 5,
-    WRITE_RESULT: 6
+    WRITE_RESULT: 6,
+    FAULTS_BATT: 7
 };
 
 const areaCmd = {
@@ -238,6 +239,13 @@ client.on('data', (recv_data) => {
         }
 
         break;
+
+    case cmdType.FAULTS_BATT:
+        console.log("Faults");
+        batteryVoltage = (((data[3] & 0x3) << 8) | data[2]) * 0.01516;        
+        mqtt_publish("Inim/BatteryVoltage", batteryVoltage.toFixed(2));
+        mqtt_publish("Inim/Faults", "0x" + ((data[0] << 16) | (data[4] << 8) | data[5]).toString(16));
+        break;
         
     case cmdType.WRITE_CMD:
         if (data[0] != cmd['arg']) {
@@ -327,6 +335,7 @@ function setScenario(message)
     queueCommand(read_write_result_buf, cmdType.WRITE_RESULT);
 }
 
+const read_faults_batt_buf = Buffer.from("000000200500062B", 'hex');
 const read_zone_status_buf = Buffer.from("0000002001001a3b", 'hex');
 const read_area_status_buf = Buffer.from("0000002000001030", 'hex');
 const read_log_elem_buf = Buffer.from("0000001FFF000000", 'hex');
@@ -347,6 +356,7 @@ setInterval(function() {
     case 0:
         queueCommand(read_zone_status_buf, cmdType.ZONE_STAT);
         queueCommand(read_area_status_buf, cmdType.AREA_STAT);
+        queueCommand(read_faults_batt_buf, cmdType.FAULTS_BATT);
         break;  
     case 1:
         prevLogHead = logHead;
@@ -392,6 +402,10 @@ function queueCommand(buffer, type, arg)
         
     case cmdType.AREA_STAT:
         size = 17;
+        break;
+
+    case cmdType.FAULTS_BATT:
+        size = 7;
         break;
         
     case cmdType.WRITE_CMD:
