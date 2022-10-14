@@ -64,7 +64,7 @@ function calcCkSum(buffer, offset, size)
 
     for (i = offset; i < size; i++)
     {
-	cksum += buffer[i];
+        cksum += buffer[i];
     }
     
     return cksum & 0xFF;
@@ -80,183 +80,183 @@ client.on('data', (recv_data) => {
 
     if (cmdQueue.length == 0)
     {
-	console.log("cmdQueue empty!");
-	return;
+        console.log("cmdQueue empty!");
+        return;
     }
     
 
     cmd = cmdQueue[0];
 
-	
+    
     if (databuffer.length < cmd['respSize'])
     {
-	console.log("no enough data");
-	return;
+        console.log("no enough data");
+        return;
     }
 
     data = databuffer.slice(0, cmd['respSize'])
     databuffer = databuffer.slice(cmd['respSize']);
 
-	
+    
     console.log(data);
-	
+    
     cmdQueue.shift();
-	
+    
 
     if (cmd['type'] != cmdType.WRITE_CMD) {
-	    
-	ckSum = calcCkSum(data, 0, data.length - 1);
-	
-	if (ckSum != data[data.length - 1])
-	{	
-	    console.log("");
-	    console.log("!!! ------------------------------------------------ Checksum error !!! " + ckSum + " " + data[data.length - 1]);
-	    console.log("");
-	    return;
-	}
+        
+        ckSum = calcCkSum(data, 0, data.length - 1);
+        
+        if (ckSum != data[data.length - 1])
+        {       
+            console.log("");
+            console.log("!!! ------------------------------------------------ Checksum error !!! " + ckSum + " " + data[data.length - 1]);
+            console.log("");
+            return;
+        }
     }
-	
-	
+    
+    
     switch(cmd['type']) {
-	    
+        
     case cmdType.LOG_ELEM:
-	var datetime = new Date(2000,0,1);
-	datetime.setSeconds((data[3] << 24) | (data[2] << 16) | (data[1] << 8) | data[0]);
-	console.log(datetime, data.toString('utf8',6,22), data.toString('utf8',26,42), data.toString('utf8',46,62));
-	break;
-	    
+        var datetime = new Date(2000,0,1);
+        datetime.setSeconds((data[3] << 24) | (data[2] << 16) | (data[1] << 8) | data[0]);
+        console.log(datetime, data.toString('utf8',6,22), data.toString('utf8',26,42), data.toString('utf8',46,62));
+        break;
+        
     case cmdType.LOG_HEAD:
-	logHead = data[1] << 8 | data[0];
-	console.log("Log head " + logHead);
-	break;
-	
+        logHead = data[1] << 8 | data[0];
+        console.log("Log head " + logHead);
+        break;
+        
     case cmdType.ZONE_STAT:
-	
-	zone = 0;
-	for (i = 0; i < 25; i++)
-	{
-	    for(n = 0; n < 8; n+=2)
-	    {   
-		if (!(zone in zones))
-		{
-		    zone++;
-		    continue;
-		}
-		
-		zone_name = zones[zone];
-		value = (data[i] >> n) & 3;
-		
-		if (!(zone in zonesLastValue) || (zonesLastValue[zone] != value))
-		{
-		    zonesLastValue[zone] = value;
-		    
-		    switch (value) {
-		    case 0:
-			console.log('Zone ' + zone + ': Short ('+ zone_name +')');
-			mqtt_publish("Inim/Zone/"+zone, "Short");
-			break;
-		    case 1:		
-			console.log('Zone ' + zone + ': Closed('+ zone_name +')');
-			mqtt_publish("Inim/Zone/"+zone, "Closed");
-			break;
-		    case 2:
-			console.log('Zone ' + zone + ': Open('+ zone_name +')');
-			mqtt_publish("Inim/Zone/"+zone, "Open");
-			break;
-		    case 3:
-			console.log('Zone ' + zone + ': Tamper('+ zone_name +')');
-			mqtt_publish("Inim/Zone/"+zone, "Tamper");
-			break;
-		    }
-		}
-		
-		zone++;
-	    }
-	}
-	break;
-	
+        
+        zone = 0;
+        for (i = 0; i < 25; i++)
+        {
+            for(n = 0; n < 8; n+=2)
+            {   
+                if (!(zone in zones))
+                {
+                    zone++;
+                    continue;
+                }
+                
+                zone_name = zones[zone];
+                value = (data[i] >> n) & 3;
+                
+                if (!(zone in zonesLastValue) || (zonesLastValue[zone] != value))
+                {
+                    zonesLastValue[zone] = value;
+                    
+                    switch (value) {
+                    case 0:
+                        console.log('Zone ' + zone + ': Short ('+ zone_name +')');
+                        mqtt_publish("Inim/Zone/"+zone, "Short");
+                        break;
+                    case 1:             
+                        console.log('Zone ' + zone + ': Closed('+ zone_name +')');
+                        mqtt_publish("Inim/Zone/"+zone, "Closed");
+                        break;
+                    case 2:
+                        console.log('Zone ' + zone + ': Open('+ zone_name +')');
+                        mqtt_publish("Inim/Zone/"+zone, "Open");
+                        break;
+                    case 3:
+                        console.log('Zone ' + zone + ': Tamper('+ zone_name +')');
+                        mqtt_publish("Inim/Zone/"+zone, "Tamper");
+                        break;
+                    }
+                }
+                
+                zone++;
+            }
+        }
+        break;
+        
     case cmdType.AREA_STAT:
 
-	scen_status = data.slice(0,6);
-	if (scen_status.compare(scen_disarmed_buf) == 0)
-	{
-	    mqtt_publish("Inim/Arm", 'disarmed');
+        scen_status = data.slice(0,6);
+        if (scen_status.compare(scen_disarmed_buf) == 0)
+        {
+            mqtt_publish("Inim/Arm", 'disarmed');
         }
         else if (scen_status.compare(scen_away_buf) == 0)
         {
             mqtt_publish("Inim/Arm", 'armed_away');
         }
-	else if (scen_status.compare(scen_home_buf) == 0)
+        else if (scen_status.compare(scen_home_buf) == 0)
         {
             mqtt_publish("Inim/Arm", 'armed_home');
         }
-	else if (scen_status.compare(scen_night_buf) == 0)
+        else if (scen_status.compare(scen_night_buf) == 0)
         {
             mqtt_publish("Inim/Arm", 'armed_night');
         }
-	
-	for (area = 0; area < 10; area++)
-	{
-	    armed = (data[Math.floor(area/2)] >>> (((area % 2) * 4))) & 0xF
-	    
-	    switch (armed) {
-	    case 1:
-		armeds = 'Armed';
-		break;
-	    case 2:
-		armeds = 'Stay ';
-		break;
-	    case 3:
-		armeds = 'Insta';
-		break;
-	    case 4:
-		armeds = 'None ';
-		break;
-	    default:
-		armeds = armed
-		break;
-	    }
-	    
-	    alarm = (data[ area < 8 ? 6 : 7] >>> (area % 8)) & 1;
-	    
-	    tamper = (data[ area < 8 ? 8 : 9] >>> (area % 8)) & 1;
-	    
-	    alarm_mem = (data[ area < 8 ? 10 : 11] >>> (area % 8)) & 1;
+        
+        for (area = 0; area < 10; area++)
+        {
+            armed = (data[Math.floor(area/2)] >>> (((area % 2) * 4))) & 0xF
+            
+            switch (armed) {
+            case 1:
+                armeds = 'Armed';
+                break;
+            case 2:
+                armeds = 'Stay ';
+                break;
+            case 3:
+                armeds = 'Insta';
+                break;
+            case 4:
+                armeds = 'None ';
+                break;
+            default:
+                armeds = armed
+                break;
+            }
+            
+            alarm = (data[ area < 8 ? 6 : 7] >>> (area % 8)) & 1;
+            
+            tamper = (data[ area < 8 ? 8 : 9] >>> (area % 8)) & 1;
+            
+            alarm_mem = (data[ area < 8 ? 10 : 11] >>> (area % 8)) & 1;
 
-	    tamper_mem = (data[ area < 8 ? 12 : 13] >>> (area % 8)) & 1;
-	    
-	    auto_arm = (data[ area < 8 ? 14 : 15] >>> (area % 8)) & 1;
-	    
-	    value = "{ \"armed\" : \""+ armeds +"\", \"alarm\" : \""+ alarm +"\", \"tamper\" : \""+ tamper +"\", \"alarm_mem\" : \""+ alarm_mem +"\", \"tamper_mem\" : \""+ tamper_mem +"\", \"auto_arm\" : \""+ auto_arm +"\" }";
+            tamper_mem = (data[ area < 8 ? 12 : 13] >>> (area % 8)) & 1;
+            
+            auto_arm = (data[ area < 8 ? 14 : 15] >>> (area % 8)) & 1;
+            
+            value = "{ \"armed\" : \""+ armeds +"\", \"alarm\" : \""+ alarm +"\", \"tamper\" : \""+ tamper +"\", \"alarm_mem\" : \""+ alarm_mem +"\", \"tamper_mem\" : \""+ tamper_mem +"\", \"auto_arm\" : \""+ auto_arm +"\" }";
 
-	    if (!(area in areasLastValue) || (areasLastValue[area] != value))
-	    {
-		console.log('Area ' + area + ' armed=' + armeds + ' alarm=' + alarm + ' tamper=' + tamper + ' alarm_mem=' + alarm_mem + ' tamper_mem=' + tamper_mem + ' auto_arm=' + auto_arm);
-		areasLastValue[area] = value;
-		mqtt_publish("Inim/Area/"+area, value);
-	    }
-	}
+            if (!(area in areasLastValue) || (areasLastValue[area] != value))
+            {
+                console.log('Area ' + area + ' armed=' + armeds + ' alarm=' + alarm + ' tamper=' + tamper + ' alarm_mem=' + alarm_mem + ' tamper_mem=' + tamper_mem + ' auto_arm=' + auto_arm);
+                areasLastValue[area] = value;
+                mqtt_publish("Inim/Area/"+area, value);
+            }
+        }
 
-	break;
-	
+        break;
+        
     case cmdType.WRITE_CMD:
-	if (data[0] != cmd['arg']) {
-	    console.log("------------------------------------- Checksum error "+ data[0] + " " + cmd['arg']);
-	}
-	else {
-	    console.log("Checksum ok");
-	}
-	break;
-	
+        if (data[0] != cmd['arg']) {
+            console.log("------------------------------------- Checksum error "+ data[0] + " " + cmd['arg']);
+        }
+        else {
+            console.log("Checksum ok");
+        }
+        break;
+        
     case cmdType.WRITE_RESULT:
 
-	mqtt_publish("Inim/LastWriteResult", data[0] == 0 ? "OK" : "NOK: " + data[0]);
-	    	
-	if (data[0] != 0) {
-	    console.log("------------------------------------- Write Result error: " + data[0]);
-	}
-	
-	break;
+        mqtt_publish("Inim/LastWriteResult", data[0] == 0 ? "OK" : "NOK: " + data[0]);
+        
+        if (data[0] != 0) {
+            console.log("------------------------------------- Write Result error: " + data[0]);
+        }
+        
+        break;
     }
 
     canTransmit = true;
@@ -293,25 +293,25 @@ function setScenario(message)
 
     for(i = 8; i < 14; i++)
     {
-	buf[i] = 255;
+        buf[i] = 255;
     }
 
     for(i = 0; i < pincode.length; i++)
     {
-	buf[i+8] = pincode[i] - '0';
+        buf[i+8] = pincode[i] - '0';
     }
     
     if (scenario == "DISARM")
     {
-	scen_disarmed_buf.copy(buf, 14);
+        scen_disarmed_buf.copy(buf, 14);
     }
     else if (scenario == "ARM_AWAY")
     {
-	scen_away_buf.copy(buf, 14);
+        scen_away_buf.copy(buf, 14);
     }
     else if (scenario == "ARM_HOME")
     {
-	scen_home_buf.copy(buf, 14);
+        scen_home_buf.copy(buf, 14);
     }
     else if (scenario == "ARM_NIGHT")
     {
@@ -319,8 +319,8 @@ function setScenario(message)
     }
     else
     {
-	console.log("Scenario " + scenario + " not handled");
-	return;
+        console.log("Scenario " + scenario + " not handled");
+        return;
     }
 
     queueCommand(buf, cmdType.WRITE_CMD, calcCkSum(buf, 8, buf.length));
@@ -345,28 +345,28 @@ setInterval(function() {
 
     switch (cnt) {
     case 0:
-	queueCommand(read_zone_status_buf, cmdType.ZONE_STAT);
-	queueCommand(read_area_status_buf, cmdType.AREA_STAT);
-	break;	
+        queueCommand(read_zone_status_buf, cmdType.ZONE_STAT);
+        queueCommand(read_area_status_buf, cmdType.AREA_STAT);
+        break;  
     case 1:
-	prevLogHead = logHead;
-	queueCommand(read_log_head_buf, cmdType.LOG_HEAD);
-	break;
+        prevLogHead = logHead;
+        queueCommand(read_log_head_buf, cmdType.LOG_HEAD);
+        break;
     case 4:
     case 5:
     case 6:
     case 7:
     case 8:
     case 9:
-	i = logHead + 2 - cnt;
-	read_log_elem_buf[5] = (i >> 8) & 0xFF;
+        i = logHead + 2 - cnt;
+        read_log_elem_buf[5] = (i >> 8) & 0xFF;
         read_log_elem_buf[6] = i & 0xFF;
         read_log_elem_buf[read_log_elem_buf.length - 1] = calcCkSum(read_log_elem_buf, 0, read_log_elem_buf.length - 1);
 
-	queueCommand(read_log_elem_buf, cmdType.LOG_ELEM);
-	break;
+        queueCommand(read_log_elem_buf, cmdType.LOG_ELEM);
+        break;
     default:
-	break;
+        break;
     }
 
     cnt = (cnt + 1) % 1; //20;
@@ -377,7 +377,7 @@ setInterval(function() {
 function queueCommand(buffer, type, arg)
 {
     size = 0;
-    switch (type) {	
+    switch (type) {     
     case cmdType.LOG_ELEM:
         size = 367;
         break;
@@ -385,33 +385,33 @@ function queueCommand(buffer, type, arg)
     case cmdType.LOG_HEAD:
         size = 5;
         break;
-	
+        
     case cmdType.ZONE_STAT:
         size = 27;
         break;
-	
+        
     case cmdType.AREA_STAT:
         size = 17;
         break;
-	
+        
     case cmdType.WRITE_CMD:
         size = 1;
         break;
-	
+        
     case cmdType.WRITE_RESULT:
         size = 2;
         break;
-	
+        
     default:
-	console.log("queueCommand: Invalid command type");
-	return;
+        console.log("queueCommand: Invalid command type");
+        return;
     }
     
     
     cmdQueue.push({ 'buffer'   : buffer,
-		    'type'     : type,
-		    'respSize' : size,
-		    'arg'      : arg });
+                    'type'     : type,
+                    'respSize' : size,
+                    'arg'      : arg });
 
     //console.log("Queued commands: " + cmdQueue.length);
 
@@ -423,8 +423,8 @@ function consumeCmdQueue()
 {
     if ((canTransmit) && (cmdQueue.length > 0))
     {
-	canTransmit = false;
-	client.write(cmdQueue[0]['buffer']); // TODO check return value
+        canTransmit = false;
+        client.write(cmdQueue[0]['buffer']); // TODO check return value
     }
 }
 
@@ -442,7 +442,7 @@ setInterval(function() {
 mqtt_client.on('connect', function() {
     console.log("Connected to MQTT broker");
     mqtt_client.subscribe('Inim/Commands/#', function(err) {
-	console.log(err);
+        console.log(err);
     });
     mqtt_connected = true;
 });
@@ -454,15 +454,15 @@ mqtt_client.on('message', function(topic, message) {
 
     if (topic.endsWith("/Arm"))
     {
-	mqtt_publish("Inim/Arm", 'pending');
+        mqtt_publish("Inim/Arm", 'pending');
 
-	setScenario(message);
+        setScenario(message);
     }
 });
 
 function mqtt_publish(key, value)
 {
-//    console.log("MQTT Publish " + key + " : " + value);
+    //    console.log("MQTT Publish " + key + " : " + value);
     mqtt_client.publish(key, value);
 }
 
