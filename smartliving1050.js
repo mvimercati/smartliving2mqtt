@@ -249,10 +249,10 @@ client.on('data', (recv_data) => {
 	break;
 	
     case cmdType.WRITE_RESULT:
-	if (data[0] == 0) {
-	    console.log("Write Result OK");
-	}
-	else {
+
+	mqtt_publish("Inim/LastWriteResult", data[0] == 0 ? "OK" : "NOK: " + data[0]);
+	    	
+	if (data[0] != 0) {
 	    console.log("------------------------------------- Write Result error: " + data[0]);
 	}
 	
