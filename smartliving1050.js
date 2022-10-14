@@ -283,16 +283,23 @@ function setArmed(area, value)
     queueCommand(read_write_result_buf, cmdType.WRITE_RESULT);
 }
 
-function setScenario(scenario)
+function setScenario(message)
 {
+    messageObj = JSON.parse(message);
+    scenario = messageObj['action'];
+    pincode = messageObj['code'];
+    
     buf = Buffer.from(write_cmd_area_buf);
 
-    buf[8] = 0;
-    buf[9] = 5;
-    buf[10] = 2;
-    buf[11] = 9;
-    buf[12] = 255;
-    buf[13] = 255;
+    for(i = 8; i < 14; i++)
+    {
+	buf[i] = 255;
+    }
+
+    for(i = 0; i < pincode.length; i++)
+    {
+	buf[i+8] = pincode[i] - '0';
+    }
     
     if (scenario == "DISARM")
     {
@@ -339,11 +346,9 @@ setInterval(function() {
     switch (cnt) {
     case 0:
 	queueCommand(read_zone_status_buf, cmdType.ZONE_STAT);
-	break;
-    case 1:	
 	queueCommand(read_area_status_buf, cmdType.AREA_STAT);
 	break;	
-    case 2:
+    case 1:
 	prevLogHead = logHead;
 	queueCommand(read_log_head_buf, cmdType.LOG_HEAD);
 	break;
@@ -364,7 +369,7 @@ setInterval(function() {
 	break;
     }
 
-    cnt = (cnt + 1) % 3; //20;
+    cnt = (cnt + 1) % 1; //20;
     
 }, 1000); // every 10s poll zone status
 
@@ -408,7 +413,7 @@ function queueCommand(buffer, type, arg)
 		    'respSize' : size,
 		    'arg'      : arg });
 
-    console.log("Queued commands: " + cmdQueue.length);
+    //console.log("Queued commands: " + cmdQueue.length);
 
 
     consumeCmdQueue();
@@ -447,9 +452,12 @@ mqtt_client.on('message', function(topic, message) {
 
     console.log("------- Command topic " + topic + " -> " + message);
 
-    mqtt_publish("Inim/Arm", 'pending');
+    if (topic.endsWith("/Arm"))
+    {
+	mqtt_publish("Inim/Arm", 'pending');
 
-    setScenario(message);
+	setScenario(message);
+    }
 });
 
 function mqtt_publish(key, value)
