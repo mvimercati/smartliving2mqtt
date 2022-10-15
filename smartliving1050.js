@@ -37,6 +37,8 @@ var zones = {
 
 var zonesLastValue = {};
 var areasLastValue = {};
+var lastBatteryVoltage = "";
+var lastFaultsSummary = "";
 
 var cmdQueue = [];
 
@@ -241,10 +243,40 @@ client.on('data', (recv_data) => {
         break;
 
     case cmdType.FAULTS_BATT:
-        console.log("Faults");
-        batteryVoltage = (((data[3] & 0x3) << 8) | data[2]) * 0.01516;        
-        mqtt_publish("Inim/BatteryVoltage", batteryVoltage.toFixed(2));
-        mqtt_publish("Inim/Faults", "0x" + ((data[0] << 16) | (data[4] << 8) | data[5]).toString(16));
+        batteryVoltage = ((((data[3] & 0x3) << 8) | data[2]) * 0.01516).toFixed(1);
+        faultsSummary = "0x" + ((data[0] << 24) | (data[1] << 16) | (data[4] << 8) | data[5]).toString(16).toUpperCase();
+
+        if (batteryVoltage != lastBatteryVoltage) {
+            lastBatteryVoltage = batteryVoltage;
+            mqtt_publish("Inim/BatteryVoltage", batteryVoltage);
+        }
+        if (faultsSummary != lastFaultsSummary) {
+            lastFaultsSummary = faultsSummary;
+            value = "{ " +
+                "\"summary\" : \""             + faultsSummary + "\", " +
+                "\"fuse_zones\" : \""          + ((data[0] >>> 0) & 1) + "\", " +
+                "\"fuse_ibus\" : \""           + ((data[0] >>> 1) & 1) + "\", " +
+                "\"fault_battery\" : \""       + ((data[0] >>> 2) & 1) + "\", " +
+                "\"fault_mains\" : \""         + ((data[0] >>> 3) & 1) + "\", " +
+                "\"fault_phone\" : \""         + ((data[0] >>> 4) & 1) + "\", " +
+                "\"fault_jamming\" : \""       + ((data[0] >>> 5) & 1) + "\", " +
+                "\"fault_radio_battery\" : \"" + ((data[0] >>> 6) & 1) + "\", " +
+                "\"fault_radio_loss\" : \""    + ((data[0] >>> 7) & 1) + "\", " +                
+                "\"tamper_panel\" : \""        + ((data[4] >>> 4) & 1) + "\", " +
+                "\"tamper_cover\" : \""        + ((data[4] >>> 5) & 1) + "\", " +
+                "\"tamper_reader\" : \""       + ((data[4] >>> 6) & 1) + "\", " +
+                "\"tamper_keypad\" : \""       + ((data[4] >>> 7) & 1) + "\", " +
+                "\"tamper_expander\" : \""     + ((data[5] >>> 0) & 1) + "\", " +
+                "\"reset\" : \""               + ((data[5] >>> 1) & 1) + "\", " +
+                "\"disarmed\" : \""            + ((data[5] >>> 3) & 1) + "\", " +
+                "\"internet\" : \""            + ((data[5] >>> 4) & 1) + "\", " +
+                "\"service\" : \""             + ((data[5] >>> 5) & 1) + "\", " +
+                "\"program\" : \""             + ((data[5] >>> 6) & 1) + "\", " +
+                "\"voice\" : \""               + ((data[5] >>> 7) & 1) + "\" " +
+                " }";
+            console.log("-> " + value);
+            mqtt_publish("Inim/Faults", value);
+        }
         break;
         
     case cmdType.WRITE_CMD:
@@ -446,7 +478,9 @@ setInterval(function() {
 
     zonesLastValue = {};
     areasLastValue = {};
-
+    lastBatteryVoltage = "";
+    lastFaultsSummary = "";
+    
     console.log("Clear");
     
 }, 600 * 1000); // every 600s refresh all sensors
