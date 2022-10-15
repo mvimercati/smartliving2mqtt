@@ -244,7 +244,8 @@ client.on('data', (recv_data) => {
 
     case cmdType.FAULTS_BATT:
         batteryVoltage = ((((data[3] & 0x3) << 8) | data[2]) * 0.01516).toFixed(1);
-        faultsSummary = "0x" + ((data[0] << 24) | (data[1] << 16) | (data[4] << 8) | data[5]).toString(16).toUpperCase();
+        // Mask byte 5/bit 3 (& 0xF7) to hide arm/disarm flag
+        faultsSummary = "0x" + ((data[0] << 24) | (data[1] << 16) | (data[4] << 8) | data[5] & 0xF7).toString(16).toUpperCase();
 
         if (batteryVoltage != lastBatteryVoltage) {
             lastBatteryVoltage = batteryVoltage;
@@ -268,7 +269,7 @@ client.on('data', (recv_data) => {
                 "\"tamper_keypad\" : \""       + ((data[4] >>> 7) & 1) + "\", " +
                 "\"tamper_expander\" : \""     + ((data[5] >>> 0) & 1) + "\", " +
                 "\"reset\" : \""               + ((data[5] >>> 1) & 1) + "\", " +
-                "\"disarmed\" : \""            + ((data[5] >>> 3) & 1) + "\", " +
+//                "\"disarmed\" : \""            + ((data[5] >>> 3) & 1) + "\", " +
                 "\"internet\" : \""            + ((data[5] >>> 4) & 1) + "\", " +
                 "\"service\" : \""             + ((data[5] >>> 5) & 1) + "\", " +
                 "\"program\" : \""             + ((data[5] >>> 6) & 1) + "\", " +
