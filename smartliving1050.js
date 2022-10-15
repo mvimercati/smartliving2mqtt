@@ -97,11 +97,16 @@ client.on('data', (recv_data) => {
         return;
     }
 
+    if (databuffer.length > cmd['respSize'])
+    {
+        console.log("Extra bytes????");
+    }
+
     data = databuffer.slice(0, cmd['respSize'])
     databuffer = databuffer.slice(cmd['respSize']);
 
     
-    console.log(data);
+//    console.log(data);
     
     cmdQueue.shift();
     
