@@ -100,6 +100,7 @@ client.on('data', (recv_data) => {
     if (databuffer.length > cmd['respSize'])
     {
         console.log("Extra bytes????");
+	dataBuffer.clear();
     }
 
     data = databuffer.slice(0, cmd['respSize'])
@@ -120,6 +121,7 @@ client.on('data', (recv_data) => {
             console.log("");
             console.log("!!! ------------------------------------------------ Checksum error !!! " + ckSum + " " + data[data.length - 1]);
             console.log("");
+	    dataBuffer.clear();
             return;
         }
     }
@@ -251,7 +253,6 @@ client.on('data', (recv_data) => {
         batteryVoltage = ((((data[3] & 0x3) << 8) | data[2]) * 0.01516).toFixed(1);
         // Mask byte 5/bit 3 (& 0xF7) to hide arm/disarm flag
         faultsSummary = "0x" + ((data[0] << 24) | (data[1] << 16) | (data[4] << 8) | data[5] & 0xF7).toString(16).toUpperCase();
-
         if (batteryVoltage != lastBatteryVoltage) {
             lastBatteryVoltage = batteryVoltage;
             mqtt_publish("Inim/BatteryVoltage", batteryVoltage);
@@ -480,17 +481,16 @@ function consumeCmdQueue()
     }
 }
 
-setInterval(function() {
+setInterval(refresh, 600 * 1000); // every 600s refresh all sensors
 
+function refresh()
+{
+    console.log("Refresh");
     zonesLastValue = {};
     areasLastValue = {};
     lastBatteryVoltage = "";
     lastFaultsSummary = "";
-    
-    console.log("Clear");
-    
-}, 600 * 1000); // every 600s refresh all sensors
-
+}
 
 
 mqtt_client.on('connect', function() {
@@ -511,6 +511,11 @@ mqtt_client.on('message', function(topic, message) {
         mqtt_publish("Inim/Arm", 'pending');
 
         setScenario(message);
+    }
+
+    if (topic.endsWith("/Refresh"))
+    {
+        refresh();
     }
 });
 
