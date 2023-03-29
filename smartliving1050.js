@@ -100,7 +100,7 @@ client.on('data', (recv_data) => {
     if (databuffer.length > cmd['respSize'])
     {
         console.log("Extra bytes????");
-	dataBuffer.clear();
+	databuffer.clear();
     }
 
     data = databuffer.slice(0, cmd['respSize'])
