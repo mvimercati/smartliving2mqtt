@@ -6,12 +6,27 @@ const client = net.createConnection({ host: "192.168.1.33", port: 9876 }, () => 
     console.log('Connected to server!');
 
     init();
+    cmdQueue = [];
+
+    client.setTimeout(900*1000);
 });
 
 client.on('end', () => {
     console.log('Disconnected from server');
+
+    cmdQueue = [];
 });
 
+client.on('timeout', () => {
+    console.log('Socket timeout');
+    canTransmit = true;
+    cmdQueue = [];
+});
+
+client.on('error', () => {
+    console.log('Socket error');
+    process.exit(-1)
+});
 
 var mqtt = require('mqtt');
 var mqtt_client = mqtt.connect('mqtt://127.0.0.1',{clientId:"smartliving2mqtt",username:"mqtt_user",password:"mqtt"});
@@ -214,13 +229,13 @@ client.on('data', (recv_data) => {
                 armeds = 'Armed';
                 break;
             case 2:
-                armeds = 'Stay ';
+                armeds = 'Stay';
                 break;
             case 3:
-                armeds = 'Insta';
+                armeds = 'Instant';
                 break;
             case 4:
-                armeds = 'None ';
+                armeds = 'Not Armed';
                 break;
             default:
                 armeds = armed
@@ -477,7 +492,11 @@ function consumeCmdQueue()
     if ((canTransmit) && (cmdQueue.length > 0))
     {
         canTransmit = false;
-        client.write(cmdQueue[0]['buffer']); // TODO check return value
+        if (!client.write(cmdQueue[0]['buffer']))
+	{
+	    console.log("Error writing data");
+	    canTransmit = true;
+	}
     }
 }
 
@@ -528,5 +547,5 @@ function mqtt_publish(key, value)
 
 function init()
 {
-
+    
 }
