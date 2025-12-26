@@ -29,7 +29,7 @@ client.on('error', () => {
 });
 
 var mqtt = require('mqtt');
-var mqtt_client = mqtt.connect('mqtt://127.0.0.1',{clientId:"smartliving2mqtt",username:"mqtt_user",password:"mqtt"});
+var mqtt_client = mqtt.connect('mqtt://127.0.0.1', { clientId: "smartliving2mqtt", username: "mqtt_user", password: "mqtt" });
 var mqtt_connected = false;
 
 var zones = {
